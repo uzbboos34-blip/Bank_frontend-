@@ -42,6 +42,7 @@ export default function DebtorDetail() {
   const [photoBase64, setPhotoBase64] = useState(null);
   const [photoTakenAt, setPhotoTakenAt] = useState(null);
   const [sendingPhoto, setSendingPhoto] = useState(false);
+  const [savedSummary, setSavedSummary] = useState(null); // Saqlangandan keyingi xulosa oynasi
 
   useEffect(() => {
     loadDebtor();
@@ -134,44 +135,54 @@ export default function DebtorDetail() {
         return;
       }
 
-      // 1. Backendga status va promiseDate saqlaymiz
-      await api.patch(`/debtors/${id}`, {
-        status: selectedStatus,
-        promiseDate: calculatedDate,
-      });
-
-      // 2. Backendga qayd (note) saqlaymiz
+      // 1 va 2. Backendga status, va'da sanasi va qaydni parallel saqlaymiz (tezkor)
       const clientId = 'note-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      await api.post(`/debtors/${id}/notes`, {
-        clientId,
-        status: selectedStatus,
-        text: finalNoteText || undefined,
-      });
+      await Promise.all([
+        api.patch(`/debtors/${id}`, {
+          status: selectedStatus,
+          promiseDate: calculatedDate,
+        }),
+        api.post(`/debtors/${id}/notes`, {
+          clientId,
+          status: selectedStatus,
+          text: finalNoteText || undefined,
+        }),
+      ]);
 
-      // 3. Agar rasm tushirilgan bo'lsa — avtomatik Telegramga yuboramiz
+      // 3. Agar rasm bo'lsa — orqa fonda Telegramga yuboramiz (FOYDALANUVCHI KUTIB TURMAYDI!)
       if (photoBase64) {
-        try {
-          await api.post(`/debtors/${id}/send-photo`, {
-            imageBase64: photoBase64,
-            status: selectedStatus,
-            note: noteText.trim() || undefined,
-            takenAt: photoTakenAt || Date.now(),
-          });
-          setPhotoBase64(null);
-          setPhotoTakenAt(null);
-          showToast('Muvaffaqiyatli saqlandi va Telegramga yuborildi ✓', 'success');
-        } catch (photoErr) {
-          console.error('Telegram rasm xatoligi:', photoErr);
-          showToast('Saqlandi, ammo Telegramga rasm yuborishda xatolik', 'warning');
-        }
-      } else {
-        showToast('Muvaffaqiyatli saqlandi ✓', 'success');
+        api.post(`/debtors/${id}/send-photo`, {
+          imageBase64: photoBase64,
+          status: selectedStatus,
+          note: noteText.trim() || undefined,
+          takenAt: photoTakenAt || Date.now(),
+        }).catch((photoErr) => {
+          console.error('Telegram fonda yuborish xatosi:', photoErr);
+        });
       }
 
-      // Sahifadan chiqmay — debtor ma'lumotlarini qayta yuklaymiz
+      const statusLabelsMap = {
+        PROMISED: "Va'da berdi",
+        NOT_HOME: "Uyda yo'q",
+        NO_MONEY: "Pul yo'q",
+        PHONE_OFF: "Telefon o'chiq",
+        MOVED: "Ko'chib ketgan",
+        PAID: "To'ladi",
+      };
+
+      // Saqlangan ma'lumotlar xulosasini ko'rsatamiz
+      setSavedSummary({
+        fullName: debtor.fullName,
+        status: statusLabelsMap[selectedStatus] || selectedStatus,
+        promiseDate: calculatedDate ? new Date(calculatedDate).toLocaleDateString('uz-UZ') : null,
+        note: finalNoteText || "Izoh kiritilmadi",
+        hasPhoto: !!photoBase64,
+      });
+
+      setPhotoBase64(null);
+      setPhotoTakenAt(null);
       setNoteText('');
       setPaidAmount('');
-      await loadDebtor();
     } catch (err) {
       showToast(err.userMessage || 'Saqlashda xatolik yuz berdi', 'error');
     } finally {
@@ -588,6 +599,72 @@ export default function DebtorDetail() {
           </div>
         </div>
       </div>
+
+      {/* 🎉 Muvaffaqiyatli saqlangan ma'lumotlar xulosasi va Asosiy ekranga qaytish oynasi */}
+      {savedSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 text-center">
+            {/* Yashil belgi */}
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+              <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-slate-900">Muvaffaqiyatli saqlandi!</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Qarzdor ma'lumotlari yangilandi</p>
+            </div>
+
+            {/* Nimani saqlaganini ko'rsatuvchi xulosa bloki */}
+            <div className="bg-slate-50 rounded-2xl p-4 text-left space-y-2.5 border border-slate-200/80 text-xs">
+              <div>
+                <span className="text-slate-400 font-semibold block text-[11px]">Qarzdor:</span>
+                <span className="font-bold text-slate-800 text-sm leading-tight block">{savedSummary.fullName}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-semibold block text-[11px]">Yangi holat:</span>
+                <span className="inline-block px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold mt-0.5">
+                  {savedSummary.status} {savedSummary.promiseDate ? `• ${savedSummary.promiseDate}` : ''}
+                </span>
+              </div>
+              {savedSummary.note && (
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Izoh:</span>
+                  <span className="text-slate-700 font-medium">{savedSummary.note}</span>
+                </div>
+              )}
+              {savedSummary.hasPhoto && (
+                <div className="flex items-center gap-1.5 text-emerald-600 font-bold pt-1 border-t border-slate-200/60">
+                  <span>📸 Rasm Telegram guruhga fonda yuborilmoqda</span>
+                </div>
+              )}
+            </div>
+
+            {/* Asosiy ekranga o'tish tugmasi */}
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={() => navigate('/debtors')}
+                className="w-full py-4 bg-[#0f172a] hover:bg-black active:scale-[0.99] text-white rounded-2xl font-black text-sm shadow-xl shadow-slate-900/30 transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>🏠 Asosiy ekranga o'tish</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSavedSummary(null);
+                  loadDebtor();
+                }}
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs transition cursor-pointer"
+              >
+                Shu sahifada qolish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

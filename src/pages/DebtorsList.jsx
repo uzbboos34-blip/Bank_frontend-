@@ -13,13 +13,22 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { CircularProgress } from '@mui/material';
 
 export default function DebtorsList() {
-  const [debtors, setDebtors] = useState([]);
-  const [counts, setCounts] = useState({ yangi: 0, jarayonda: 0, tolagan: 0, barchasi: 0 });
-  const [totals, setTotals] = useState({ principalDebt: 0, interestDebt: 0, totalDebt: 0, minDebt: 0, loanAmount: 0 });
+  const getInitialCache = () => {
+    try {
+      const cached = localStorage.getItem('cached_debtors_list');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return null;
+  };
+
+  const initialData = getInitialCache();
+  const [debtors, setDebtors] = useState(initialData?.items || []);
+  const [counts, setCounts] = useState(initialData?.counts || { yangi: 0, jarayonda: 0, tolagan: 0, barchasi: 0 });
+  const [totals, setTotals] = useState(initialData?.totals || { principalDebt: 0, interestDebt: 0, totalDebt: 0, minDebt: 0, loanAmount: 0 });
   const [tab, setTab] = useState('barchasi'); // 'barchasi' | 'yangi' | 'jarayonda' | 'tolagan'
   const [statusFilter, setStatusFilter] = useState(''); // Qo'shimcha status: PROMISED, NOT_HOME, NO_MONEY, va h.k.
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData?.items?.length);
   const [viewMode, setViewMode] = useState('table'); // 'table' (Excel jadval) | 'cards' (Kartalar)
 
   const navigate = useNavigate();
@@ -29,7 +38,9 @@ export default function DebtorsList() {
   }, [tab, statusFilter, search]);
 
   const loadDebtors = async () => {
-    setLoading(true);
+    if (!debtors || debtors.length === 0) {
+      setLoading(true);
+    }
     try {
       const params = {
         limit: 100,
