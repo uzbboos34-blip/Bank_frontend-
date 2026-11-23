@@ -147,7 +147,23 @@ export default function DebtorDetail() {
         text: finalNoteText || undefined,
       });
 
-      showToast('Muvaffaqiyatli saqlandi ✓', 'success');
+      // 3. Agar rasm tushirilgan bo'lsa — avtomatik Telegramga yuboramiz
+      if (photoBase64) {
+        try {
+          await api.post(`/debtors/${id}/send-photo`, {
+            imageBase64: photoBase64,
+            status: selectedStatus,
+            note: noteText.trim() || undefined,
+          });
+          setPhotoBase64(null);
+          showToast('Muvaffaqiyatli saqlandi va Telegramga yuborildi ✓', 'success');
+        } catch (photoErr) {
+          console.error('Telegram rasm xatoligi:', photoErr);
+          showToast('Saqlandi, ammo Telegramga rasm yuborishda xatolik', 'warning');
+        }
+      } else {
+        showToast('Muvaffaqiyatli saqlandi ✓', 'success');
+      }
 
       // Sahifadan chiqmay — debtor ma'lumotlarini qayta yuklaymiz
       setNoteText('');
@@ -545,24 +561,10 @@ export default function DebtorDetail() {
                     </svg>
                   </button>
                 </div>
-                {/* Telegram ga yuborish */}
-                <button
-                  type="button"
-                  onClick={handleSendPhoto}
-                  disabled={sendingPhoto}
-                  className="w-full py-3 bg-[#229ED9] hover:bg-[#1a8bbf] active:scale-[0.99] text-white rounded-2xl font-black text-sm shadow-md shadow-blue-400/30 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {sendingPhoto ? (
-                    <><CircularProgress size={16} sx={{ color: 'white' }} /> Yuborilmoqda...</>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                      </svg>
-                      Telegram guruhga yuborish
-                    </>
-                  )}
-                </button>
+                {/* Rasm biriktirildi xabari */}
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200">
+                  <span>✓ Rasm biriktirildi ("Saqlash" bosilganda Telegramga avtomatik yuboriladi)</span>
+                </div>
               </div>
             )}
           </div>
