@@ -13,7 +13,7 @@ export default function MobileBottomNav() {
 
   return (
     // DIQQAT: Faqat mobil ekranlarda chiqadi (md:hidden), desktopda yon panel bor!
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/98 backdrop-blur-md border-t border-slate-200/90 py-2 px-6 flex items-center justify-around shadow-lg shadow-slate-900/10">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 py-1.5 px-4 flex items-center justify-around pb-[max(env(safe-area-inset-bottom,6px),8px)] shadow-sm">
       {navItems.map((item) => (
         <NavLink
           key={item.path}
@@ -21,8 +21,8 @@ export default function MobileBottomNav() {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center py-1 px-3 transition min-w-[70px] ${
               isActive
-                ? 'text-blue-600 font-extrabold scale-105'
-                : 'text-slate-500 hover:text-slate-800 font-semibold'
+                ? 'text-blue-600 font-extrabold'
+                : 'text-slate-400 hover:text-slate-700 font-medium'
             }`
           }
         >

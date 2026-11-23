@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { showToast } from '../components/GlobalToast';
+import MapChooserModal from '../components/MapChooserModal';
 import SearchIcon from '@mui/icons-material/Search';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import PhoneIcon from '@mui/icons-material/Phone';
@@ -29,7 +30,8 @@ export default function DebtorsList() {
   const [statusFilter, setStatusFilter] = useState(''); // Qo'shimcha status: PROMISED, NOT_HOME, NO_MONEY, va h.k.
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(!initialData?.items?.length);
-  const [viewMode, setViewMode] = useState('table'); // 'table' (Excel jadval) | 'cards' (Kartalar)
+  const [viewMode, setViewMode] = useState(window.innerWidth < 768 ? 'cards' : 'table'); // Mobilda kartalar, desktopda jadval
+  const [mapTarget, setMapTarget] = useState(null); // Xaritada ochilishi kerak bo'lgan qarzdor
 
   const navigate = useNavigate();
 
@@ -197,15 +199,16 @@ export default function DebtorsList() {
   };
 
   return (
-    <div className="space-y-4 select-none w-full">
-      {/* ─── 1. Header Toolbar ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-        <div>
+    <div className="space-y-3 sm:space-y-4 select-none w-full">
+      {/* ─── 1. Header Toolbar (Mobil moslashtirilgan ixcham panel) ─── */}
+      <div className="flex items-center justify-between gap-2 bg-white p-2 sm:p-4 rounded-2xl border border-slate-200/90 shadow-xs">
+        {/* Desktopda to'liq sarlavha (Mobilda ixcham) */}
+        <div className="hidden sm:block">
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               Kredit portfeli va harakatsiz (NPL) kreditlar
             </h1>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Joylashuv yoqilgan</span>
             </span>
@@ -215,115 +218,116 @@ export default function DebtorsList() {
           </p>
         </div>
 
-        {/* View Switcher & Excel Export Action Buttons */}
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          {/* Refresh button */}
-          <button
-            onClick={loadDebtors}
-            className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl border border-slate-200 transition cursor-pointer"
-            title="Yangilash"
-          >
-            <RefreshIcon sx={{ fontSize: 20 }} />
-          </button>
-
-          {/* View Switcher */}
+        {/* View Switcher & Action Buttons */}
+        <div className="flex items-center justify-between sm:justify-end gap-1.5 w-full sm:w-auto">
+          {/* Kartalar / Jadval tanlagich */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               type="button"
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                viewMode === 'table'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <TableChartIcon sx={{ fontSize: 16 }} />
-              <span>Excel jadval</span>
-            </button>
-            <button
-              type="button"
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+              className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                 viewMode === 'cards'
-                  ? 'bg-white text-blue-700 shadow-sm'
+                  ? 'bg-white text-blue-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <ViewAgendaIcon sx={{ fontSize: 16 }} />
               <span>Kartalar</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <TableChartIcon sx={{ fontSize: 16 }} />
+              <span>Jadval</span>
+            </button>
           </div>
 
-          {/* Export to Excel */}
-          <button
-            type="button"
-            onClick={exportToExcel}
-            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-emerald-600/30 transition cursor-pointer"
-            title="Excel formatida (.csv) yuklab olish"
-          >
-            <FileDownloadIcon sx={{ fontSize: 16 }} />
-            <span className="hidden md:inline">Excelga yuklab olish</span>
-            <span className="md:hidden">Excel</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {/* Refresh */}
+            <button
+              onClick={loadDebtors}
+              className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl border border-slate-200 transition cursor-pointer"
+              title="Yangilash"
+            >
+              <RefreshIcon sx={{ fontSize: 18 }} />
+            </button>
+
+            {/* Export to Excel */}
+            <button
+              type="button"
+              onClick={exportToExcel}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+              title="Excel formatida (.csv) yuklab olish"
+            >
+              <FileDownloadIcon sx={{ fontSize: 16 }} />
+              <span className="text-[11px]">Excel</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ─── 2. Top Filter Status Cards ─── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+      {/* ─── 2. Top Filter Status Cards (Mobilda 1 qatorda 4 ta ixcham karta) ─── */}
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
         {/* Barchasi */}
         <button
           type="button"
           onClick={() => { setTab('barchasi'); setStatusFilter(''); }}
-          className={`rounded-2xl p-3 sm:p-3.5 flex flex-col items-center justify-center transition cursor-pointer border ${
+          className={`rounded-xl sm:rounded-2xl py-2 px-1 sm:p-3 flex flex-col items-center justify-center transition cursor-pointer border ${
             tab === 'barchasi' && !statusFilter
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/30 font-bold'
-              : 'bg-white text-slate-800 border-slate-200/90 hover:bg-slate-50'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-600/30 font-bold'
+              : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <span className="text-xl sm:text-2xl font-black tracking-tight">{counts.barchasi || debtors.length}</span>
-          <span className="text-xs font-semibold mt-0.5">Barchasi</span>
+          <span className="text-base sm:text-2xl font-black tracking-tight leading-none">{counts.barchasi || debtors.length}</span>
+          <span className="text-[10px] sm:text-xs font-semibold mt-1">Barchasi</span>
         </button>
 
         {/* Yangi */}
         <button
           type="button"
           onClick={() => { setTab('yangi'); setStatusFilter(''); }}
-          className={`rounded-2xl p-3 sm:p-3.5 flex flex-col items-center justify-center transition cursor-pointer border ${
+          className={`rounded-xl sm:rounded-2xl py-2 px-1 sm:p-3 flex flex-col items-center justify-center transition cursor-pointer border ${
             tab === 'yangi'
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/30 font-bold'
-              : 'bg-white text-slate-800 border-slate-200/90 hover:bg-slate-50'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-600/30 font-bold'
+              : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <span className="text-xl sm:text-2xl font-black tracking-tight">{counts.yangi || 0}</span>
-          <span className="text-xs font-semibold mt-0.5">Yangi</span>
+          <span className="text-base sm:text-2xl font-black tracking-tight leading-none">{counts.yangi || 0}</span>
+          <span className="text-[10px] sm:text-xs font-semibold mt-1">Yangi</span>
         </button>
 
         {/* Jarayonda */}
         <button
           type="button"
           onClick={() => { setTab('jarayonda'); setStatusFilter(''); }}
-          className={`rounded-2xl p-3 sm:p-3.5 flex flex-col items-center justify-center transition cursor-pointer border ${
+          className={`rounded-xl sm:rounded-2xl py-2 px-1 sm:p-3 flex flex-col items-center justify-center transition cursor-pointer border ${
             tab === 'jarayonda'
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/30 font-bold'
-              : 'bg-white text-slate-800 border-slate-200/90 hover:bg-slate-50'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-600/30 font-bold'
+              : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <span className="text-xl sm:text-2xl font-black tracking-tight">{counts.jarayonda || 0}</span>
-          <span className="text-xs font-semibold mt-0.5">Jarayonda</span>
+          <span className="text-base sm:text-2xl font-black tracking-tight leading-none">{counts.jarayonda || 0}</span>
+          <span className="text-[10px] sm:text-xs font-semibold mt-1">Jarayonda</span>
         </button>
 
         {/* To'lagan */}
         <button
           type="button"
           onClick={() => { setTab('tolagan'); setStatusFilter(''); }}
-          className={`rounded-2xl p-3 sm:p-3.5 flex flex-col items-center justify-center transition cursor-pointer border ${
+          className={`rounded-xl sm:rounded-2xl py-2 px-1 sm:p-3 flex flex-col items-center justify-center transition cursor-pointer border ${
             tab === 'tolagan'
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/30 font-bold'
-              : 'bg-white text-slate-800 border-slate-200/90 hover:bg-slate-50'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-600/30 font-bold'
+              : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <span className="text-xl sm:text-2xl font-black tracking-tight">{counts.tolagan || 0}</span>
-          <span className="text-xs font-semibold mt-0.5">To'lagan</span>
+          <span className="text-base sm:text-2xl font-black tracking-tight leading-none">{counts.tolagan || 0}</span>
+          <span className="text-[10px] sm:text-xs font-semibold mt-1">To'lagan</span>
         </button>
       </div>
 
@@ -568,10 +572,18 @@ export default function DebtorsList() {
 
                     {/* 17. Masofa */}
                     <td className="py-2.5 px-2.5 text-center text-blue-600 font-bold border-r border-slate-200 whitespace-nowrap">
-                      <span className="flex items-center justify-center gap-0.5">
-                        <LocationOnIcon sx={{ fontSize: 13 }} />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMapTarget(debtor);
+                        }}
+                        className="flex items-center justify-center gap-0.5 hover:text-blue-800 hover:underline cursor-pointer mx-auto"
+                        title="Xaritani tanlash"
+                      >
+                        <LocationOnIcon sx={{ fontSize: 14 }} className="text-rose-500" />
                         <span>{debtor.distanceFormatted || '500 m'}</span>
-                      </span>
+                      </button>
                     </td>
 
                     {/* 18. Holati */}
@@ -667,13 +679,21 @@ export default function DebtorsList() {
                 </div>
 
                 <div className="text-right shrink-0">
-                  <span className="font-black text-slate-900 text-lg block tracking-tight">
+                  <span className="font-black text-slate-900 text-base sm:text-lg block tracking-tight">
                     {formatMoney(debtor.minDebt)}
                   </span>
-                  <span className="text-blue-600 text-xs font-bold flex items-center justify-end gap-1 mt-0.5">
-                    <LocationOnIcon sx={{ fontSize: 13 }} />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMapTarget(debtor);
+                    }}
+                    className="text-blue-600 text-xs font-bold flex items-center justify-end gap-0.5 mt-0.5 hover:underline cursor-pointer"
+                    title="Xaritada ochish"
+                  >
+                    <LocationOnIcon sx={{ fontSize: 14 }} className="text-rose-500" />
                     <span>{debtor.distanceFormatted || '500 m'}</span>
-                  </span>
+                  </button>
                 </div>
               </div>
 
@@ -691,6 +711,17 @@ export default function DebtorsList() {
           ))}
         </div>
       )}
+
+      {/* 🗺 Xaritani tanlash oynasi (Yandex / Google / 2GIS) */}
+      <MapChooserModal
+        isOpen={!!mapTarget}
+        onClose={() => setMapTarget(null)}
+        address={mapTarget?.address}
+        mfy={mapTarget?.mfy}
+        lat={mapTarget?.lat}
+        lng={mapTarget?.lng}
+        fullName={mapTarget?.fullName}
+      />
     </div>
   );
 }

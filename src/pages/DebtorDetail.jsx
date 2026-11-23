@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { showToast } from '../components/GlobalToast';
 import { savePendingAction } from '../utils/offlineSync';
+import MapChooserModal from '../components/MapChooserModal';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -43,6 +44,7 @@ export default function DebtorDetail() {
   const [photoTakenAt, setPhotoTakenAt] = useState(null);
   const [sendingPhoto, setSendingPhoto] = useState(false);
   const [savedSummary, setSavedSummary] = useState(null); // Saqlangandan keyingi xulosa oynasi
+  const [showMapModal, setShowMapModal] = useState(false); // Xarita tanlash oynasi
 
   useEffect(() => {
     loadDebtor();
@@ -297,10 +299,14 @@ export default function DebtorDetail() {
           {debtor.mfy ? `${debtor.mfy} · ` : ''}
           {debtor.address || 'Manzil kiritilmagan'}
         </p>
-        <p className="text-xs sm:text-sm text-blue-600 font-bold flex items-center gap-1 mt-1">
-          <LocationOnIcon sx={{ fontSize: 16 }} />
-          <span>{debtor.distanceFormatted || '500 m'} uzoqda</span>
-        </p>
+        <button
+          type="button"
+          onClick={() => setShowMapModal(true)}
+          className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 mt-1 cursor-pointer"
+        >
+          <LocationOnIcon sx={{ fontSize: 16 }} className="text-rose-500" />
+          <span>{debtor.distanceFormatted || '500 m'} uzoqda (Xaritada ochish)</span>
+        </button>
       </div>
 
       {/* Responsive layout: 1 col on mobile, 2 cols on desktop/tablet */}
@@ -380,22 +386,19 @@ export default function DebtorDetail() {
             </a>
 
             {/* Maps Button (White with Blue Border) */}
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(
-                (debtor.mfy ? debtor.mfy + ', ' : '') + (debtor.address || ''),
-              )}`}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-white hover:bg-slate-50 active:scale-[0.98] text-blue-700 border-2 border-blue-600 p-3.5 sm:p-4 rounded-2xl flex items-center gap-2.5 transition cursor-pointer"
+            <button
+              type="button"
+              onClick={() => setShowMapModal(true)}
+              className="bg-white hover:bg-slate-50 active:scale-[0.98] text-blue-700 border-2 border-blue-600 p-3 sm:p-4 rounded-2xl flex items-center gap-2.5 transition cursor-pointer text-left"
             >
               <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
                 <LocationOnIcon sx={{ fontSize: 18 }} />
               </div>
               <div className="min-w-0 text-left">
                 <span className="block text-xs font-bold leading-tight">Xaritada</span>
-                <span className="block text-[11px] text-blue-600 font-semibold truncate">Manzilni ochish</span>
+                <span className="block text-[11px] text-blue-600 font-semibold truncate">Yandex / Google / 2GIS</span>
               </div>
-            </a>
+            </button>
           </div>
 
           {/* Past Notes history on desktop view */}
@@ -665,6 +668,17 @@ export default function DebtorDetail() {
           </div>
         </div>
       )}
+
+      {/* 🗺 Xaritani tanlash oynasi (Yandex / Google / 2GIS) */}
+      <MapChooserModal
+        isOpen={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        address={debtor.address}
+        mfy={debtor.mfy}
+        lat={debtor.lat}
+        lng={debtor.lng}
+        fullName={debtor.fullName}
+      />
     </div>
   );
 }
