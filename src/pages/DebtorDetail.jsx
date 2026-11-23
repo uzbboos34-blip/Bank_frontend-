@@ -174,7 +174,7 @@ export default function DebtorDetail() {
     if (!photoBase64) return;
     setSendingPhoto(true);
     try {
-      const res = await api.post(`/api/debtors/${id}/send-photo`, {
+      const res = await api.post(`/debtors/${id}/send-photo`, {
         imageBase64: photoBase64,
         status: selectedStatus,
         note: noteText.trim() || undefined,
