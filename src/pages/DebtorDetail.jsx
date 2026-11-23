@@ -53,7 +53,17 @@ export default function DebtorDetail() {
   const loadDebtor = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/debtors/${id}`);
+      let params = {};
+      if ('geolocation' in navigator) {
+        try {
+          const pos = await new Promise((res, rej) =>
+            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 3000 })
+          );
+          params.userLat = pos.coords.latitude;
+          params.userLng = pos.coords.longitude;
+        } catch (e) {}
+      }
+      const res = await api.get(`/debtors/${id}`, { params });
       setDebtor(res.data);
       if (res.data.status) {
         setSelectedStatus(res.data.status);

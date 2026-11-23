@@ -32,14 +32,35 @@ export default function DebtorsList() {
   const [loading, setLoading] = useState(!initialData?.items?.length);
   const [viewMode, setViewMode] = useState('table'); // Faqat Excel jadval
   const [mapTarget, setMapTarget] = useState(null); // Xaritada ochilishi kerak bo'lgan qarzdor
+  const [userCoords, setUserCoords] = useState(null); // Xodimning haqiqiy GPS koordinatasi
 
   const navigate = useNavigate();
+
+  // 🛰 Ilova ochilganda telefon GPS lokatsiyasini so'raydi
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserCoords(coords);
+          loadDebtors(coords);
+        },
+        (err) => {
+          console.warn('GPS ruxsat berilmadi yoki xato:', err);
+          loadDebtors();
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      loadDebtors();
+    }
+  }, []);
 
   useEffect(() => {
     loadDebtors();
   }, [tab, statusFilter, search]);
 
-  const loadDebtors = async () => {
+  const loadDebtors = async (coords = userCoords) => {
     if (!debtors || debtors.length === 0) {
       setLoading(true);
     }
@@ -47,6 +68,10 @@ export default function DebtorsList() {
       const params = {
         limit: 100,
       };
+      if (coords?.lat && coords?.lng) {
+        params.userLat = coords.lat;
+        params.userLng = coords.lng;
+      }
       if (tab !== 'barchasi') {
         params.tab = tab;
       }
