@@ -1,0 +1,10 @@
+{
+  "appId": "com.undiruv.bank",
+  "appName": "Undiruv",
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false
+    }
+  }
+}
