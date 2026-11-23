@@ -40,6 +40,7 @@ export default function DebtorDetail() {
 
   // 📸 Kamera uchun
   const [photoBase64, setPhotoBase64] = useState(null);
+  const [photoTakenAt, setPhotoTakenAt] = useState(null);
   const [sendingPhoto, setSendingPhoto] = useState(false);
 
   useEffect(() => {
@@ -154,8 +155,10 @@ export default function DebtorDetail() {
             imageBase64: photoBase64,
             status: selectedStatus,
             note: noteText.trim() || undefined,
+            takenAt: photoTakenAt || Date.now(),
           });
           setPhotoBase64(null);
+          setPhotoTakenAt(null);
           showToast('Muvaffaqiyatli saqlandi va Telegramga yuborildi ✓', 'success');
         } catch (photoErr) {
           console.error('Telegram rasm xatoligi:', photoErr);
@@ -180,6 +183,7 @@ export default function DebtorDetail() {
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setPhotoTakenAt(file.lastModified || Date.now());
     const reader = new FileReader();
     reader.onload = (ev) => setPhotoBase64(ev.target.result);
     reader.readAsDataURL(file);
@@ -194,10 +198,12 @@ export default function DebtorDetail() {
         imageBase64: photoBase64,
         status: selectedStatus,
         note: noteText.trim() || undefined,
+        takenAt: photoTakenAt || Date.now(),
       });
       if (res.data.success) {
         showToast('📸 Rasm Telegram guruhga yuborildi!', 'success');
         setPhotoBase64(null);
+        setPhotoTakenAt(null);
       } else {
         showToast('Rasm yuborishda xatolik', 'error');
       }
