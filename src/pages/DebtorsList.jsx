@@ -253,9 +253,15 @@ export default function DebtorsList() {
           <div className="flex items-center gap-1.5">
             {/* Refresh */}
             <button
-              onClick={loadDebtors}
+              onClick={() => {
+                try {
+                  localStorage.removeItem('cached_debtors_list');
+                } catch (e) {}
+                showToast("Eski kesh tozalandi, yangilanmoqda...", 'info');
+                loadDebtors(userCoords);
+              }}
               className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl border border-slate-200 transition cursor-pointer"
-              title="Yangilash"
+              title="Yangilash va eski keshni tozalash"
             >
               <RefreshIcon sx={{ fontSize: 18 }} />
             </button>

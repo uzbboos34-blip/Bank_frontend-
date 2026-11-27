@@ -6,18 +6,24 @@ import NavigationIcon from '@mui/icons-material/Navigation';
 export default function MapChooserModal({ isOpen, onClose, address, mfy, lat, lng, fullName }) {
   if (!isOpen) return null;
 
-  // Agar manzilda "Беруний" yoki "Beruniy" bo'lmasa — xaritaga aniq "Беруний тумани" deb qo'shib yuboramiz.
-  // Shunda Yandex/Google xaritasi Toshkent yoki Urganchga adashib ketmaydi, aynan Bерунийдан qidiradi!
-  const rawAddress = [mfy, address].filter(Boolean).join(', ') || 'Беруний';
-  const hasBeruniy = rawAddress.toLowerCase().includes('беруний') || rawAddress.toLowerCase().includes('beruniy');
-  const searchAddress = hasBeruniy ? rawAddress : `Беруний тумани, ${rawAddress}`;
+  // Xarita Toshkent yoki Urganchga adashib ketmasligi uchun:
+  // 1. Manzil boshiga aniq "Беруний тумани" qo'shiladi.
+  // 2. Xarita markazi (ll=60.7525,41.6911) aynan Beruniyga mahkamlanadi!
+  const cleanMfy = (mfy || '').trim();
+  const cleanAddr = (address || '').trim();
+  const fullAddress = [cleanMfy, cleanAddr].filter(Boolean).join(', ') || 'Беруний';
+
+  const searchQuery = fullAddress.toLowerCase().includes('беруний')
+    ? fullAddress
+    : `Беруний тумани, ${fullAddress}`;
 
   const openYandex = () => {
     let url = '';
     if (lat && lng) {
-      url = `https://yandex.uz/maps/?pt=${lng},${lat}&z=16&l=map&text=${encodeURIComponent(searchAddress)}`;
+      url = `https://yandex.uz/maps/?pt=${lng},${lat}&z=16&l=map&text=${encodeURIComponent(searchQuery)}`;
     } else {
-      url = `https://yandex.uz/maps/?text=${encodeURIComponent(searchAddress)}`;
+      // ll=60.7525,41.6911 Beruniy markaziga qadash (IP Toshkent bo'lsa ham aynan Beruniyni ochadi)
+      url = `https://yandex.uz/maps/?ll=60.7525,41.6911&z=14&text=${encodeURIComponent(searchQuery)}`;
     }
     window.open(url, '_system');
     onClose();
@@ -28,14 +34,14 @@ export default function MapChooserModal({ isOpen, onClose, address, mfy, lat, ln
     if (lat && lng) {
       url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
     } else {
-      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchAddress)}`;
+      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Беруний, ' + searchQuery)}`;
     }
     window.open(url, '_system');
     onClose();
   };
 
   const open2Gis = () => {
-    const url = `https://2gis.uz/search/${encodeURIComponent(searchAddress)}`;
+    const url = `https://2gis.uz/search/${encodeURIComponent('Беруний, ' + searchQuery)}`;
     window.open(url, '_system');
     onClose();
   };
@@ -76,7 +82,7 @@ export default function MapChooserModal({ isOpen, onClose, address, mfy, lat, ln
           )}
           <div className="flex items-start gap-1.5 text-slate-600">
             <LocationOnIcon sx={{ fontSize: 16 }} className="text-rose-500 shrink-0 mt-0.5" />
-            <span className="font-medium text-[11px] leading-tight">{searchAddress}</span>
+            <span className="font-medium text-[11px] leading-tight">{searchQuery}</span>
           </div>
         </div>
 
