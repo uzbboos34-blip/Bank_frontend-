@@ -160,7 +160,7 @@ export default function DebtorDetail() {
             status: selectedStatus,
             promiseDate: calculatedDate || undefined,
             paidAmount: selectedStatus === 'PAID' && paidAmount ? Number(paidAmount.replace(/\s+/g, '')) : undefined,
-            note: finalNoteText || undefined,
+            note: noteText.trim() || undefined,
             takenAt: photoTakenAt || Date.now(),
           }).catch((photoErr) => {
             console.error('Telegram fonda yuborish xatosi:', photoErr);
