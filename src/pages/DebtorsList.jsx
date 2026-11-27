@@ -165,6 +165,18 @@ export default function DebtorsList() {
     }
   };
 
+  const getCleanPhoneNote = (note) => {
+    if (!note || typeof note !== 'string') return '';
+    let cleaned = note
+      .replace(/(?:\+?998|8|\+7)?[\s\-_(]*\d{2,3}[\s\-_)]*\d{3}[\s\-_]*\d{2}[\s\-_]*\d{2}/g, ' ')
+      .replace(/\b\d{7,12}\b/g, ' ')
+      .replace(/\b(tel|тел|telefon|телефон)\s*[:.\-]?/gi, ' ')
+      .replace(/[,;/\-_|.\s]+/g, ' ')
+      .trim();
+    if (!cleaned || cleaned === '0' || /^\d+$/.test(cleaned)) return '';
+    return cleaned;
+  };
+
   const getPaidAmountDisplay = (debtor) => {
     if (debtor.status !== 'PAID') return '—';
     const text = debtor.lastNote?.text || '';
@@ -625,8 +637,8 @@ export default function DebtorsList() {
                   <th className="py-3 px-2.5 text-center w-24 border-r border-slate-200">Berilgan</th>
                   <th className="py-3 px-2.5 text-center w-24 border-r border-slate-200">Tugallanish</th>
                   <th className="py-3 px-3 text-right min-w-[130px] border-r border-slate-200 bg-slate-100/90">Asosiy qarz</th>
-                  <th className="py-3 px-3 text-right min-w-[140px] border-r border-slate-200 bg-blue-50 text-blue-900">JAMI minimal</th>
                   <th className="py-3 px-3 text-right min-w-[130px] border-r border-slate-200">Jami qarz</th>
+                  <th className="py-3 px-3 text-right min-w-[140px] border-r border-slate-200 bg-blue-50 text-blue-900">JAMI minimal</th>
                   <th className="py-3 px-3 text-center min-w-[110px] border-r border-slate-200">Holati</th>
                   <th className="py-3 px-2.5 text-center min-w-[120px] border-r border-slate-200">Va'da / To'lov</th>
                   {/* Amallar ustuni */}
@@ -698,31 +710,39 @@ export default function DebtorsList() {
                       className="py-2 px-3 font-medium text-slate-800 border-r border-slate-200 whitespace-nowrap"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {debtor.phones && debtor.phones.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {debtor.phones.map((phone, pIdx) => (
-                            <a
-                              key={pIdx}
-                              href={`tel:${phone}`}
-                              className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1.5 hover:underline text-xs tracking-tight"
-                              title={`${phone} raqamiga qo'ng'iroq qilish`}
-                            >
-                              <PhoneIcon sx={{ fontSize: 13 }} className="text-blue-500 shrink-0" />
-                              <span>{phone}</span>
-                            </a>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                      {debtor.phoneNote && (
-                        <p
-                          className="text-[10px] text-amber-900 font-semibold whitespace-normal max-w-[200px] mt-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 leading-tight"
-                          title={debtor.phoneNote}
-                        >
-                          {debtor.phoneNote}
-                        </p>
-                      )}
+                      {(() => {
+                        const validPhones = (debtor.phones || []).filter((p) => p && p.trim() !== '0' && p.trim() !== '-');
+                        const cleanNote = getCleanPhoneNote(debtor.phoneNote);
+                        return (
+                          <>
+                            {validPhones.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {validPhones.map((phone, pIdx) => (
+                                  <a
+                                    key={pIdx}
+                                    href={`tel:${phone}`}
+                                    className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1.5 hover:underline text-xs tracking-tight"
+                                    title={`${phone} raqamiga qo'ng'iroq qilish`}
+                                  >
+                                    <PhoneIcon sx={{ fontSize: 13 }} className="text-blue-500 shrink-0" />
+                                    <span>{phone}</span>
+                                  </a>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                            {cleanNote && (
+                              <p
+                                className="text-[10px] text-amber-900 font-semibold whitespace-normal max-w-[200px] mt-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 leading-tight"
+                                title={cleanNote}
+                              >
+                                {cleanNote}
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
 
                     {/* 8. MFY */}
@@ -771,14 +791,14 @@ export default function DebtorsList() {
                       {formatMoney(debtor.principalDebt)}
                     </td>
 
-                    {/* 14. JAMI minimal */}
-                    <td className="py-2.5 px-3 text-right font-mono font-black text-blue-700 bg-blue-50/50 border-r border-slate-200 whitespace-nowrap text-sm">
-                      {formatMoney(debtor.minDebt)}
-                    </td>
-
-                    {/* 15. Jami qarz */}
+                    {/* 14. Jami qarz */}
                     <td className="py-2.5 px-3 text-right font-mono font-extrabold text-slate-900 border-r border-slate-200 whitespace-nowrap">
                       {formatMoney(debtor.totalDebt || (Number(debtor.principalDebt) + Number(debtor.interestDebt)))}
+                    </td>
+
+                    {/* 15. JAMI minimal */}
+                    <td className="py-2.5 px-3 text-right font-mono font-black text-blue-700 bg-blue-50/50 border-r border-slate-200 whitespace-nowrap text-sm">
+                      {formatMoney(debtor.minDebt)}
                     </td>
 
 
@@ -843,11 +863,11 @@ export default function DebtorsList() {
                   <td className="py-3 px-3 text-right font-mono border-r border-slate-300">
                     {formatMoney(totals.principalDebt)}
                   </td>
-                  <td className="py-3 px-3 text-right font-mono text-blue-900 bg-blue-100 border-r border-slate-300 text-sm">
-                    {formatMoney(totals.minDebt)}
-                  </td>
                   <td className="py-3 px-3 text-right font-mono border-r border-slate-300">
                     {formatMoney(totals.totalDebt)}
+                  </td>
+                  <td className="py-3 px-3 text-right font-mono text-blue-900 bg-blue-100 border-r border-slate-300 text-sm">
+                    {formatMoney(totals.minDebt)}
                   </td>
                   <td colSpan={3} className="py-3 px-3 text-center bg-slate-200/90 font-bold">
                     Jadval yakuni
