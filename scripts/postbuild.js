@@ -17,7 +17,7 @@ async function main() {
   const version = now.toISOString().replace(/[-T:.Z]/g, '').slice(0, 14); // masalan: "20261123231500"
   const versionData = {
     version: version,
-    url: 'https://undiruv-bank.vercel.app/update.zip',
+    url: 'https://bank-backend-syzt.onrender.com/auth/ota/update.zip',
     releasedAt: now.toISOString(),
   };
   fs.writeFileSync(versionPath, JSON.stringify(versionData, null, 2));
@@ -29,6 +29,14 @@ async function main() {
 
   output.on('close', () => {
     console.log(`✅ [OTA Update] update.zip yaratildi (${archive.pointer()} bayt)`);
+    // Backend OTA papkasiga nusxalash (agar mavjud bo'lsa)
+    const backendOtaDir = path.resolve('..', 'backend', 'public', 'ota');
+    if (fs.existsSync(path.resolve('..', 'backend'))) {
+      fs.mkdirSync(backendOtaDir, { recursive: true });
+      fs.copyFileSync(versionPath, path.join(backendOtaDir, 'version.json'));
+      fs.copyFileSync(zipPath, path.join(backendOtaDir, 'update.zip'));
+      console.log(`✅ [OTA Update] backend/public/ota ga nusxalandi`);
+    }
   });
 
   archive.on('warning', (err) => {

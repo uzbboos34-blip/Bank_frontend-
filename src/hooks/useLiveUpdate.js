@@ -28,7 +28,7 @@ export function useLiveUpdate() {
         }
 
         // 3. Yangi versiya metadata ma'lumotini backenddan so'rash
-        const backendUrl = import.meta.env.VITE_API_URL || 'https://undiruv-backend.onrender.com';
+        const backendUrl = import.meta.env.VITE_API_URL || 'https://bank-backend-syzt.onrender.com';
         const response = await fetch(`${backendUrl}/auth/app-version?t=${Date.now()}`);
 
         if (!response.ok) {

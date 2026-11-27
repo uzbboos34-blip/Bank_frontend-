@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { showToast } from '../components/GlobalToast';
@@ -45,6 +45,10 @@ export default function DebtorsList() {
   // ---- YANGI: Edit modal ----
   const [editTarget, setEditTarget] = useState(null); // { id, phones: [...], address: '' }
   const [editSaving, setEditSaving] = useState(false);
+
+  // ---- YANGI: To'g'ridan-to'g'ri Excel yuklash ----
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -208,7 +212,6 @@ export default function DebtorsList() {
     }
   };
 
-  // Excelga eksport qilish (.csv UTF-8 BOM bilan - Excelda darhol to'g'ri ochiladi)
   // ---- YANGI: Checkbox yordamchilari ----
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -313,7 +316,39 @@ export default function DebtorsList() {
     }
   };
 
-  // Excelga eksport qilish (.csv UTF-8 BOM bilan - Excelda darhol to'g'ri ochiladi)
+  const handleDirectExcelUpload = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (!/\.(xlsx|xls)$/i.test(file.name || '')) {
+      showToast("Noto'g'ri fayl! Faqat .xlsx yoki .xls Excel faylini tanlang", 'error');
+      e.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await api.post('/debtors/import', formData, { timeout: 120000 });
+      try {
+        localStorage.removeItem('cached_debtors_list');
+      } catch (err) {}
+      showToast(
+        `Excel yuklandi! Yangi: ${res.data.created || 0}, Yangilandi: ${res.data.updated || 0}`,
+        'success',
+      );
+      await loadDebtors(userCoords, debouncedSearch);
+    } catch (err) {
+      showToast(err.userMessage || "Noto'g'ri Excel fayl! Bank shablonini tekshiring", 'error');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  // Excelga eksport qilish (.xlsx backend orqali - cheklovsiz barcha qarzdorlar)
   const exportToExcel = async () => {
     try {
       showToast("Excel fayli tayyorlanmoqda...", "info");
@@ -407,15 +442,24 @@ export default function DebtorsList() {
               <RefreshIcon sx={{ fontSize: 18 }} />
             </button>
 
-            {/* Excel yuklash (Import) */}
+            {/* Excel yuklash (To'g'ridan-to'g'ri fayl tanlash) */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleDirectExcelUpload}
+              disabled={uploading}
+              className="hidden"
+            />
             <button
               type="button"
-              onClick={() => navigate('/import')}
-              className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
-              title="Yangi Excel faylini yuklash (Import)"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+              title="Yangi Excel faylini (.xlsx / .xls) tanlash va yuklash"
             >
               <FileUploadIcon sx={{ fontSize: 16 }} />
-              <span>Yuklash</span>
+              <span>{uploading ? 'Yuklanmoqda...' : 'Yuklash'}</span>
             </button>
 
             {/* Export to Excel (Yuklab olish) */}
