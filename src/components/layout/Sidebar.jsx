@@ -15,7 +15,6 @@ export default function Sidebar({ isOpen, onClose }) {
   const menuItems = [
     { label: "Ro'yxat", path: '/debtors', icon: <FormatListBulletedIcon sx={{ fontSize: 20 }} /> },
     { label: 'Hisobot', path: '/report', icon: <BarChartIcon sx={{ fontSize: 20 }} /> },
-    { label: 'Excel yuklash', path: '/import', icon: <ArrowUpwardIcon sx={{ fontSize: 20 }} /> },
   ];
 
   if (user?.role === 'SUPER_ADMIN') {

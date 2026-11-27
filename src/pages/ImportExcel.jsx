@@ -27,7 +27,7 @@ export default function ImportExcel() {
     formData.append('file', file);
 
     try {
-      const res = await api.post('/debtors/import', formData);
+      const res = await api.post('/debtors/import', formData, { timeout: 120000 });
       const nowStr = new Date().toLocaleDateString('uz-UZ', {
         day: 'numeric',
         month: 'long',
@@ -44,6 +44,7 @@ export default function ImportExcel() {
 
       setUploadStats(newStats);
       localStorage.setItem('last_import_stats', JSON.stringify(newStats));
+      localStorage.removeItem('cached_debtors_list');
       showToast('Excel muvaffaqiyatli yuklandi!', 'success');
     } catch (err) {
       showToast(err.userMessage || 'Excel faylni yuklashda xatolik', 'error');

@@ -148,13 +148,25 @@ export default function Report() {
               ) : (
                 <div className="space-y-3">
                   {reportData.toLovlar.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="font-bold text-slate-900 truncate pr-2">
-                        {item.fullName}
-                      </span>
-                      <span className="font-black text-emerald-700 shrink-0">
-                        {item.amountFormatted}
-                      </span>
+                    <div key={idx} className="flex items-center justify-between text-xs sm:text-sm border-b border-slate-100 last:border-b-0 pb-2 last:pb-0">
+                      <div className="min-w-0 pr-2">
+                        <span className="font-bold text-slate-900 truncate block">
+                          {item.fullName}
+                        </span>
+                        {item.paidFormatted && (
+                          <span className="text-[11px] text-slate-500 font-medium block">
+                            To'lov: {item.paidFormatted}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-black text-emerald-700 block text-xs sm:text-sm">
+                          {item.amountFormatted}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block font-semibold">
+                          Asosiy qarz
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>

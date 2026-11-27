@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import { showToast } from '../components/GlobalToast';
 import { savePendingAction } from '../utils/offlineSync';
@@ -26,12 +26,27 @@ const STATUS_BUTTONS = [
 export default function DebtorDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [debtor, setDebtor] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Keshdan yoki navigatsiya holatidan darhol o'qish (0 ms kechikish)
+  const getInitialDebtor = () => {
+    if (location.state?.debtor) return location.state.debtor;
+    try {
+      const cached = localStorage.getItem('cached_debtors_list');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return (parsed.items || []).find((d) => String(d.id) === String(id)) || null;
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const initialDebtor = getInitialDebtor();
+  const [debtor, setDebtor] = useState(initialDebtor);
+  const [loading, setLoading] = useState(!initialDebtor);
 
   // Form states matching Screenshot 2
-  const [selectedStatus, setSelectedStatus] = useState('PROMISED');
+  const [selectedStatus, setSelectedStatus] = useState(initialDebtor?.status || 'PROMISED');
   const [promiseDateType, setPromiseDateType] = useState('ertaga'); // 'ertaga' | '3kundan' | 'custom'
   const [customDate, setCustomDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -51,39 +66,18 @@ export default function DebtorDetail() {
   }, [id]);
 
   const loadDebtor = async () => {
-    setLoading(true);
+    // Agar keshda ma'lumot bo'lsa, foydalanuvchiga spinner ko'rsatmasdan orqa fonda yangilaymiz
+    if (!debtor) setLoading(true);
     try {
-      let params = {};
-      if ('geolocation' in navigator) {
-        try {
-          const pos = await new Promise((res, rej) =>
-            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 3000 })
-          );
-          params.userLat = pos.coords.latitude;
-          params.userLng = pos.coords.longitude;
-        } catch (e) {}
-      }
-      const res = await api.get(`/debtors/${id}`, { params });
+      const res = await api.get(`/debtors/${id}`);
       setDebtor(res.data);
       if (res.data.status) {
         setSelectedStatus(res.data.status);
       }
     } catch (err) {
-      // Oflayn keshdan tekshiramiz
-      const cached = localStorage.getItem('cached_debtors_list');
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          const found = (parsed.items || []).find((d) => String(d.id) === String(id));
-          if (found) {
-            setDebtor(found);
-            if (found.status) setSelectedStatus(found.status);
-            showToast("📴 Oflayn rejim: ma'lumot keshdan yuklandi", 'info');
-            return;
-          }
-        } catch (e) {}
+      if (!debtor) {
+        showToast(err.userMessage || 'Qarzdorni yuklashda xatolik', 'error');
       }
-      showToast(err.userMessage || 'Qarzdorni yuklashda xatolik', 'error');
     } finally {
       setLoading(false);
     }
@@ -141,36 +135,35 @@ export default function DebtorDetail() {
           note: finalNoteText,
         });
         showToast('💾 Oflayn saqlandi! Internet yonganda avtomatik serverga yuboriladi.', 'info');
-        setNoteText('');
-        setPaidAmount('');
-        setSubmitting(false);
-        return;
-      }
-
-      // 1 va 2. Backendga status, va'da sanasi va qaydni parallel saqlaymiz (tezkor)
-      const clientId = 'note-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      await Promise.all([
-        api.patch(`/debtors/${id}`, {
-          status: selectedStatus,
-          promiseDate: calculatedDate,
-        }),
-        api.post(`/debtors/${id}/notes`, {
-          clientId,
-          status: selectedStatus,
-          text: finalNoteText || undefined,
-        }),
-      ]);
-
-      // 3. Agar rasm bo'lsa — orqa fonda Telegramga yuboramiz (FOYDALANUVCHI KUTIB TURMAYDI!)
-      if (photoBase64) {
-        api.post(`/debtors/${id}/send-photo`, {
-          imageBase64: photoBase64,
-          status: selectedStatus,
-          note: noteText.trim() || undefined,
-          takenAt: photoTakenAt || Date.now(),
-        }).catch((photoErr) => {
-          console.error('Telegram fonda yuborish xatosi:', photoErr);
+      } else {
+        // Backendga parallel saqlaymiz (tezkor, orqa fonda)
+        const clientId = 'note-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        Promise.all([
+          api.patch(`/debtors/${id}`, {
+            status: selectedStatus,
+            promiseDate: calculatedDate,
+          }),
+          api.post(`/debtors/${id}/notes`, {
+            clientId,
+            status: selectedStatus,
+            text: finalNoteText || undefined,
+          }),
+        ]).catch((err) => {
+          console.error('Saqlash xatosi:', err);
+          showToast(err.userMessage || 'Serverga saqlashda xatolik', 'error');
         });
+
+        // Agar rasm bo'lsa — orqa fonda Telegramga yuboramiz
+        if (photoBase64) {
+          api.post(`/debtors/${id}/send-photo`, {
+            imageBase64: photoBase64,
+            status: selectedStatus,
+            note: noteText.trim() || undefined,
+            takenAt: photoTakenAt || Date.now(),
+          }).catch((photoErr) => {
+            console.error('Telegram fonda yuborish xatosi:', photoErr);
+          });
+        }
       }
 
       const statusLabelsMap = {
@@ -181,6 +174,17 @@ export default function DebtorDetail() {
         MOVED: "Ko'chib ketgan",
         PAID: "To'ladi",
       };
+
+      // Lokal ma'lumotni darhol yangilaymiz (foydalanuvchi kutib qolmaydi)
+      setDebtor((prev) => ({
+        ...prev,
+        status: selectedStatus,
+        promiseDate: calculatedDate,
+        lastNote: finalNoteText ? { text: finalNoteText, createdAt: new Date().toISOString() } : prev?.lastNote,
+        notes: finalNoteText
+          ? [{ id: Date.now(), text: finalNoteText, status: selectedStatus, createdAt: new Date().toISOString() }, ...(prev?.notes || [])]
+          : prev?.notes,
+      }));
 
       // Saqlangan ma'lumotlar xulosasini ko'rsatamiz
       setSavedSummary({
@@ -195,6 +199,7 @@ export default function DebtorDetail() {
       setPhotoTakenAt(null);
       setNoteText('');
       setPaidAmount('');
+      showToast("Muvaffaqiyatli saqlandi!", "success");
     } catch (err) {
       showToast(err.userMessage || 'Saqlashda xatolik yuz berdi', 'error');
     } finally {
@@ -296,11 +301,6 @@ export default function DebtorDetail() {
           <span className="px-2.5 py-0.5 rounded-lg bg-rose-100 text-rose-800 font-bold text-xs border border-rose-200">
             Макс кун: {debtor.overdueDays || 0} кун
           </span>
-          {debtor.code && (
-            <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-mono text-xs">
-              22-банд: {debtor.code}
-            </span>
-          )}
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
           {debtor.fullName}
@@ -315,7 +315,7 @@ export default function DebtorDetail() {
           className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 mt-1 cursor-pointer"
         >
           <LocationOnIcon sx={{ fontSize: 16 }} className="text-rose-500" />
-          <span>{debtor.distanceFormatted || '500 m'} uzoqda (Xaritada ochish)</span>
+          <span>Xaritada ochish</span>
         </button>
       </div>
 
@@ -323,15 +323,15 @@ export default function DebtorDetail() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Left Column: Debt Info + Bank Sheet Details + Action Buttons */}
         <div className="space-y-4">
-          {/* White Debt Card (Screenshot 2) */}
+          {/* White Debt Card (Screenshot 2: Minimal va Foiz o'rni almashtirildi) */}
           <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-2">
-            <span className="text-xs font-semibold text-slate-600 block">To'lashi kerak (minimal)</span>
+            <span className="text-xs font-semibold text-slate-600 block">Jami qarzdorlik</span>
             <div className="text-3xl sm:text-4xl font-black text-blue-700 tracking-tight">
-              {formatMoney(debtor.minDebt)}{' '}
+              {formatMoney(debtor.totalDebt)}{' '}
               <span className="text-lg font-bold text-slate-700">so'm</span>
             </div>
             <p className="text-xs text-slate-600 font-medium">
-              Asosiy qarz: <strong>{formatMoney(debtor.principalDebt)}</strong> · Foiz: <strong>{formatMoney(debtor.interestDebt)}</strong>
+              Asosiy qarz: <strong>{formatMoney(debtor.principalDebt)}</strong> · Minimal: <strong>{formatMoney(debtor.minDebt)}</strong>
             </p>
           </div>
 
@@ -527,7 +527,6 @@ export default function DebtorDetail() {
                   const val = e.target.value.replace(/[^0-9]/g, '');
                   setPaidAmount(val);
                 }}
-                autoFocus
                 placeholder="Masalan: 500000"
                 className="w-full px-4 py-3.5 bg-emerald-50 border-2 border-emerald-400 rounded-2xl text-lg font-black text-emerald-900 placeholder:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 tracking-wider"
               />

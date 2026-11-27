@@ -8,7 +8,6 @@ export default function MobileBottomNav() {
   const navItems = [
     { label: "Ro'yxat", path: '/debtors', icon: <FormatListBulletedIcon sx={{ fontSize: 24 }} /> },
     { label: 'Hisobot', path: '/report', icon: <BarChartIcon sx={{ fontSize: 24 }} /> },
-    { label: 'Yuklash', path: '/import', icon: <ArrowUpwardIcon sx={{ fontSize: 24 }} /> },
   ];
 
   return (
