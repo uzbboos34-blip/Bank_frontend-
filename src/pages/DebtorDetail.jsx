@@ -158,7 +158,9 @@ export default function DebtorDetail() {
           api.post(`/debtors/${id}/send-photo`, {
             imageBase64: photoBase64,
             status: selectedStatus,
-            note: noteText.trim() || undefined,
+            promiseDate: calculatedDate || undefined,
+            paidAmount: selectedStatus === 'PAID' && paidAmount ? Number(paidAmount.replace(/\s+/g, '')) : undefined,
+            note: finalNoteText || undefined,
             takenAt: photoTakenAt || Date.now(),
           }).catch((photoErr) => {
             console.error('Telegram fonda yuborish xatosi:', photoErr);
@@ -222,9 +224,29 @@ export default function DebtorDetail() {
     if (!photoBase64) return;
     setSendingPhoto(true);
     try {
+      let calculatedPromiseDate;
+      if (selectedStatus === 'PROMISED') {
+        const now = new Date();
+        if (promiseDateType === 'ertaga') {
+          const t = new Date(now);
+          t.setDate(now.getDate() + 1);
+          calculatedPromiseDate = t.toISOString();
+        } else if (promiseDateType === '3kundan') {
+          const t = new Date(now);
+          t.setDate(now.getDate() + 3);
+          calculatedPromiseDate = t.toISOString();
+        } else if (promiseDateType === 'custom' && customDate) {
+          calculatedPromiseDate = new Date(customDate).toISOString();
+        } else if (debtor?.promiseDate) {
+          calculatedPromiseDate = debtor.promiseDate;
+        }
+      }
+
       const res = await api.post(`/debtors/${id}/send-photo`, {
         imageBase64: photoBase64,
         status: selectedStatus,
+        promiseDate: calculatedPromiseDate,
+        paidAmount: selectedStatus === 'PAID' && paidAmount ? Number(paidAmount.replace(/\s+/g, '')) : undefined,
         note: noteText.trim() || undefined,
         takenAt: photoTakenAt || Date.now(),
       });

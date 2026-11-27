@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { showToast } from '../components/GlobalToast';
@@ -793,7 +794,7 @@ export default function DebtorsList() {
 
                     {/* 14. Jami qarz */}
                     <td className="py-2.5 px-3 text-right font-mono font-extrabold text-slate-900 border-r border-slate-200 whitespace-nowrap">
-                      {formatMoney(debtor.totalDebt || (Number(debtor.principalDebt) + Number(debtor.interestDebt)))}
+                      {formatMoney(debtor.totalDebt || debtor.interestDebt || 0)}
                     </td>
 
                     {/* 15. JAMI minimal */}
